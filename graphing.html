@@ -1,0 +1,372 @@
+<head><style>
+    body {
+        height: 100vh;
+        margin: 0;
+        padding: 50px;
+        box-sizing: border-box;
+        background-color: #333;
+        color: white;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: large;
+        font-weight: bold;
+    }
+
+    canvas {
+        width: 500px;
+        height: 500px;
+        background-color: white;
+    }
+
+    .horizontal {
+        display: flex;
+    }
+
+    .vertical {
+        display: block;
+    }
+
+    .gap-20 {
+        gap: 20px;
+    }
+
+    .border-1 {
+        border: 1px solid black;
+    }
+
+    .back-grey-1 {
+        background-color: #444;
+    }
+
+    .br-10 {
+        border-radius: 5px;
+    }
+
+    .width-full {
+        width: 100%;
+    }
+
+    .width-150 {
+        width: 150px;
+    }
+
+    .p-20 {
+        padding: 20px;
+    }
+</style></head>
+<body>
+    <div class="horizontal gap-20">
+        <canvas id="canvas" class="border-1 br-10"></canvas>
+        <div class="vertical border-1 back-grey-1 br-10 width-full p-20">
+            <div class="horizontal gap-20">
+                <input name="GraphPatternInput" id="graphPatternInput" type="text" class="width-full" placeholder="A,B,C..." value="A,B,C.A>B,B-C">
+                <input type="button" value="New Graph" onclick="buttonPress()">
+            </div>
+        </div>
+    </div>
+</body>
+<script>
+    const scale = 2;
+    const zoom = 1;
+    const radius = 15;
+
+    let myCanvas = document.getElementById("canvas");
+    // document.body.appendChild(myCanvas);
+    myCanvas.width = 500 * scale;
+    myCanvas.height = 500 * scale;
+    let ctx = myCanvas.getContext("2d");
+    const fontSize = 50;
+    ctx.font = fontSize + "px sans-serif";
+    ctx.lineWidth = scale * 2;
+
+    const graphPatternInput = document.getElementById("graphPatternInput");
+    graphPatternInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+            inputCode(graphPatternInput.value);
+        }
+    });
+
+    // renderFrame(
+    //     [ //nodes
+    //         ["A", 100, 100],
+    //         ["B", 200, 100],
+    //         ["C", 300, 200]
+    //     ],
+    //     [ //edges
+    //         ['b',0,1],
+    //         ['b',1,2],
+    //         ['b',2,0]
+    //     ],
+    //     false
+    // );
+
+    //a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z.a-b,b-c,c-d,d-e,e-f,f-g,g-h,h-i,i-j,j-k,k-l,l-m,m-n,n-o,o-p,p-q,q-r,r-s,s-t,t-u,u-v,v-w,w-x,x-y,y-z,z-a
+    // // let [noddles, edgles] = renderNotation("A,B,C,D,E,F.A-B,A-C,A-D,A-E,A-F,B-C,B-D,B-E,B-F,C-D,C-E,C-F,D-E,D-F,E-F");
+    // let [noddles, edgles] = renderNotation("A,B,C,D,E,F.A-B,B-C,C-D,D-E,E-F");
+    // // let [noddles, edgles] = renderNotation("A,B,C,D,E,F.C-B,D-E,E-F,A-C,A-B,A-D,A-E,A-F");
+    // for (let i = 0; i < 50; i++) {
+    //     noddles = springFrame(noddles, edgles);
+    // }
+    // renderFrame(noddles, edgles, false);
+
+    inputCode("A,B,C,D,E,F.C-B,D-E,E-F,A-C,A-B,A-D,A-E,A-F");
+
+    function buttonPress() {
+        inputCode(graphPatternInput.value);
+    }
+    
+    function inputCode(code) {
+        let [n, e] = renderNotation(code);
+        for (let i = 0; i < 50; i++) {
+            n = springFrame(n, e);
+        }
+        renderFrame(n, e, false);
+    }
+
+    function renderFrame(nodes, edges, redistribute) {
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+        let myNodes;
+
+        if (redistribute) {
+            myNodes = springFrame(nodes);
+        } else {
+            myNodes = nodes;
+        }
+
+        // Render Edges
+        for (let i = 0; i < edges.length; i++) {
+            const nodeA = myNodes[edges[i][1]];
+            const nodeB = myNodes[edges[i][2]];
+            const angleAB = Math.atan2(nodeB[2] - nodeA[2], nodeB[1] - nodeA[1]); // radians
+            const posA = {
+                x: nodeA[1] + Math.cos(angleAB) * radius,
+                y: nodeA[2] + Math.sin(angleAB) * radius
+            };
+            const posB = {
+                x: nodeB[1] - Math.cos(angleAB) * radius,
+                y: nodeB[2] - Math.sin(angleAB) * radius
+            }
+            // ctx.strokeStyle = redistribute ? "black" : "red";
+            ctx.strokeStyle = "black";
+            ctx.beginPath();
+            ctx.moveTo(posA.x * zoom * scale, posA.y * zoom * scale);
+            ctx.lineTo(posB.x * zoom * scale, posB.y * zoom * scale);
+            ctx.stroke();
+
+            if (edges[i][0] === 'b') { // If it's bi-directional, stop here.
+                continue;
+            }
+
+            // Now draw the arrow.
+            const leftWing = {
+                x: posB.x + Math.cos(angleAB + 3 / 4 * Math.PI) * radius / 2,
+                y: posB.y + Math.sin(angleAB + 3 / 4 * Math.PI) * radius / 2
+            };
+            
+            const rightWing = {
+                x: posB.x + Math.cos(angleAB - 3 / 4 * Math.PI) * radius / 2,
+                y: posB.y + Math.sin(angleAB - 3 / 4 * Math.PI) * radius / 2
+            };
+
+            ctx.beginPath();
+            ctx.moveTo(posB.x * zoom * scale, posB.y * zoom * scale);
+            ctx.lineTo(leftWing.x * zoom * scale, leftWing.y * zoom * scale);
+            ctx.moveTo(posB.x * zoom * scale, posB.y * zoom * scale);
+            ctx.lineTo(rightWing.x * zoom * scale, rightWing.y * zoom * scale);
+            ctx.stroke();
+
+        }
+
+
+        // Render Nodes
+        for (let i = 0; i < myNodes.length; i++) { 
+            const thisNode = myNodes[i];
+            const xPos = thisNode[1] * zoom * scale;
+            const yPos = thisNode[2] * zoom * scale;
+
+            // ctx.fillStyle = "white";
+            // ctx.beginPath();
+            // ctx.moveTo(xPos, yPos);
+            // ctx.arc(xPos, yPos, radius * scale, 0, 2 * Math.PI);
+            // ctx.closePath();
+            // ctx.fill();
+
+
+            ctx.strokeStyle = "black";
+            ctx.beginPath();
+            ctx.arc(xPos, yPos, radius * scale, 0, 2 * Math.PI);
+            ctx.closePath();
+            ctx.stroke();
+            ctx.fillStyle = "black";
+            ctx.fillText(thisNode[0], xPos - 15, yPos + 15, 5000);
+        }
+
+
+    }
+
+    function renderNotation(coded) {
+        const [nodes, edges] = unpackNotation(coded);
+        let newNodes = [];
+        for (let i = 0; i < nodes.length; i++) {
+            newNodes.push(
+                [
+                    nodes[i],
+                    Math.random() * 200 + 150,
+                    Math.random() * 200 + 150
+                ]
+            )
+        }
+
+        let newEdges = [];
+        for (let i = 0; i < edges.length; i++) {
+            let fromNodeIndex, toNodeIndex, numFound;
+            for (let j = 0; j < nodes.length; j++) {
+                if (numFound >= 2)
+                    break;
+                if (nodes[j] === edges[i].from) {
+                    fromNodeIndex = j;
+                    numFound++;
+                } else if (nodes[j] === edges[i].to) {
+                    toNodeIndex = j;
+                    numFound++;
+                }
+            }
+
+            newEdges.push(
+                [
+                    edges[i].type === "bidir" ? "b" : "d",
+                    fromNodeIndex,
+                    toNodeIndex
+                ]
+            );
+        }
+
+        console.log(newNodes, newEdges);
+
+        // renderFrame(newNodes, newEdges, false);
+        // renderFrame(newNodes, newEdges, true);
+        return [newNodes, newEdges]
+    }
+
+    function unpackNotation(coded) {
+        // coded will be of the format: "A,B,C.A>B:3,C>B,A-C" which defines three nodes,
+        // makes a directed connection from A to B, with a weight of 3, then makes a
+        // directed connection from C to B, then makes a connection from A to C.
+
+        // '.' is used as a breaker between sections.
+        // ',' is used as a breaker between items in each section.
+
+        let index = 0;
+        let nodes = [];
+        let cutIndex = 0;
+        while (true) {
+            if (index > coded.length)
+                break;
+
+            const char = coded[index];
+            if (char === ".") {
+                nodes.push(coded.substr(cutIndex, index - cutIndex));
+                cutIndex = index + 1;
+                break;
+            }
+
+            if (char === ",") {
+                nodes.push(coded.substr(cutIndex, index - cutIndex));
+                cutIndex = index + 1;
+            }
+
+            index++;
+        }
+
+        let edges = [];
+        let first; // string
+        let type; // string
+        while (true) {
+            if (index > coded.length)
+                break;
+
+            const char = coded[index];
+
+            if (char === ">") {
+                first = coded.substr(cutIndex, index - cutIndex);
+                type = "dir";
+                cutIndex = index + 1;
+            }
+
+            if (char === "-") {
+                first = coded.substr(cutIndex, index - cutIndex);
+                type = "bidir";
+                cutIndex = index + 1;
+            }
+
+            if (char === ',') {
+                edges.push(
+                    {type: type, from: first, to: coded.substr(cutIndex, index - cutIndex)}
+                );
+                cutIndex = index + 1;
+            }
+
+            if (index === coded.length - 1) {
+                edges.push(
+                    {type: type, from: first, to: coded.substr(cutIndex, index - cutIndex + 1)}
+                );
+            }
+
+            index++;
+        }
+
+        return [nodes, edges];
+    }
+
+    function springFrame(nodes, edges) {
+        // nodes: [
+        //    [
+        //        "name",
+        //        0 (x),
+        //        0 (y)
+        //    ]
+        // ]
+
+        for (let i = 0; i < nodes.length; i++) {
+            for (let j = 0; j < edges.length; j++) {
+                if (edges[j][1] === i) {
+                    
+                    
+                    // if (j === i) {
+                    //     continue;
+                    // }
+
+                    const thisNode = nodes[i];
+                    const otherNode = nodes[edges[j][2]];
+
+                    const deltaSX = otherNode[1] - thisNode[1];
+                    const deltaSY = otherNode[2] - thisNode[2];
+                    const distance = Math.sqrt(deltaSX * deltaSX + deltaSY * deltaSY);
+                    const adjustment = (100 - distance) / 2;
+                    const angle = Math.atan2(otherNode[2] - thisNode[2], otherNode[1] - thisNode[1]) + (Math.random() - 0.5) / 5;
+                    thisNode[1] -= Math.cos(angle) * adjustment * 0.4;
+                    thisNode[2] -= Math.sin(angle) * adjustment * 0.4;
+                    otherNode[1] += Math.cos(angle) * adjustment * 0.4;
+                    otherNode[2] += Math.sin(angle) * adjustment * 0.4;
+                } else {
+                    const thisNode = nodes[i];
+                    const otherNode = nodes[edges[j][2]];
+
+                    const deltaSX = otherNode[1] - thisNode[1];
+                    const deltaSY = otherNode[2] - thisNode[2];
+                    const distance = Math.sqrt(deltaSX * deltaSX + deltaSY * deltaSY);
+                    const adjustment = (300 - distance) / 2;
+                    const angle = Math.atan2(otherNode[2] - thisNode[2], otherNode[1] - thisNode[1]) + (Math.random() - 0.5) / 5;
+                    thisNode[1] -= Math.cos(angle) * adjustment * 0.05;
+                    thisNode[2] -= Math.sin(angle) * adjustment * 0.05;
+                    otherNode[1] += Math.cos(angle) * adjustment * 0.05;
+                    otherNode[2] += Math.sin(angle) * adjustment * 0.05;
+
+                }
+            }
+        }
+
+        return nodes;
+    }
+</script>
